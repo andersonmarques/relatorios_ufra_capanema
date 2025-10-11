@@ -1,0 +1,7 @@
+# Dependências atualizadas para o Dashboard
+streamlit==1.50.0        # versão mais recente disponível no release notes 🚀 :contentReference[oaicite:0]{index=0}
+pandas>=2.0              # versão 2.x, compatível com recursos atuais
+plotly==6.0.0            # nova versão major disponível :contentReference[oaicite:1]{index=1}
+numpy>=1.26              # compatibilidade com operações numéricas
+requests>=2.30           # utilitários HTTP e compatibilidade com dependências
+python-dateutil>=2.9.0   # manipulação de datas
