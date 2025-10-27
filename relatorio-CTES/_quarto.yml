@@ -1,0 +1,22 @@
+project:
+  type: book
+
+book:
+  title: "Relatório CTES UFRA"
+  chapters:
+    - index.qmd
+    - relatorio.qmd
+    - relatorios_CTES.ipynb
+    - conclusao.qmd
+
+format:
+  pdf:
+    documentclass: report
+    fontsize: 12pt
+    geometry:
+      - margin=2.5cm
+    include-in-header: header.tex
+    keep-tex: true
+    toc: true
+    number-sections: true
+    pdf-engine: pdflatex
