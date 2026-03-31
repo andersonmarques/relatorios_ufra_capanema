@@ -88,6 +88,60 @@ def carregar_dados():
 df = carregar_dados()
 
 # ------------------------------------------------------------
+# Funções auxiliares - Pós-Graduação por Faixa de Conclusão
+# ------------------------------------------------------------
+def formatar_percentual_rotulo(valor):
+    valor = round(float(valor), 1)
+    if valor.is_integer():
+        return f"{int(valor)}%"
+    return f"{valor:.1f}%".replace(".", ",")
+
+
+def preparar_dados_pos_graduacao_por_faixa(df_base):
+    coluna_faixa = "Faixa de Conclus\u00e3o"
+    coluna_pos = "Possui P\u00f3s-Gradua\u00e7\u00e3o"
+
+    dados_validos = df_base[[coluna_faixa, coluna_pos]].dropna().copy()
+    if dados_validos.empty:
+        return pd.DataFrame(
+            columns=[coluna_faixa, coluna_pos, "Quantidade", "Percentual", "R\u00f3tulo Percentual"]
+        )
+
+    dados_agrupados = (
+        dados_validos
+        .groupby([coluna_faixa, coluna_pos], sort=False, dropna=False)
+        .size()
+        .reset_index(name="Quantidade")
+    )
+    totais_por_faixa = dados_agrupados.groupby(coluna_faixa, sort=False)["Quantidade"].transform("sum")
+    dados_agrupados["Percentual"] = (dados_agrupados["Quantidade"] / totais_por_faixa) * 100
+    dados_agrupados["R\u00f3tulo Percentual"] = dados_agrupados["Percentual"].apply(formatar_percentual_rotulo)
+    return dados_agrupados
+
+
+def construir_figura_pos_graduacao_por_faixa(df_pos_agrupado, altura):
+    fig_pg = px.bar(
+        df_pos_agrupado,
+        x="Faixa de Conclus\u00e3o",
+        y="Percentual",
+        color="Possui P\u00f3s-Gradua\u00e7\u00e3o",
+        barmode="group",
+        text="R\u00f3tulo Percentual",
+        labels={"Percentual": "Percentual (%)"},
+        color_discrete_sequence=[UFRA_VERDE, "#A5CFA3", "#D0E6C8"],
+        title=""
+    )
+    fig_pg.update_traces(textposition="auto")
+    fig_pg.update_yaxes(range=[0, 100], ticksuffix="%")
+    fig_pg.update_layout(
+        margin=dict(l=0, r=0, t=20, b=0),
+        height=altura,
+        plot_bgcolor="#111111",
+        paper_bgcolor="#111111"
+    )
+    return fig_pg
+
+# ------------------------------------------------------------
 # 3. LAYOUT - CABEÇALHO
 # ------------------------------------------------------------
 
@@ -272,21 +326,8 @@ with col3:
 
 with col4:
     st.subheader("🎓 Pós-Graduação por Faixa de Conclusão")
-    fig_pg = px.histogram(
-        df_filtro,
-        x="Faixa de Conclusão",
-        color="Possui Pós-Graduação",
-        barmode="group",
-        text_auto=True,
-        color_discrete_sequence=[UFRA_VERDE, "#A5CFA3", "#D0E6C8"],
-        title=""
-    )
-    fig_pg.update_layout(
-        margin=dict(l=0, r=0, t=20, b=0),
-        height=GRAPHICS_HEIGHT,
-        plot_bgcolor="#111111",
-        paper_bgcolor='#111111'
-    )
+    dados_pos_agrupados = preparar_dados_pos_graduacao_por_faixa(df_filtro)
+    fig_pg = construir_figura_pos_graduacao_por_faixa(dados_pos_agrupados, GRAPHICS_HEIGHT)
     st.plotly_chart(fig_pg, use_container_width=True, config={'displayModeBar': False})
 
 
