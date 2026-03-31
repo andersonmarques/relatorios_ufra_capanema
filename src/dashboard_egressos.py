@@ -9,6 +9,7 @@
 # ============================================================
 
 import os
+import re
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -249,6 +250,16 @@ def formatar_percentual_rotulo(valor):
     return f"{valor:.1f}%".replace(".", ",")
 
 
+def extrair_ano_inicial_faixa(faixa):
+    correspondencia = re.search(r"\d{4}", str(faixa))
+    return int(correspondencia.group()) if correspondencia else float("inf")
+
+
+def obter_ordem_cronologica_faixas(series_faixas):
+    faixas_unicas = pd.Series(series_faixas).dropna().unique().tolist()
+    return sorted(faixas_unicas, key=lambda faixa: (extrair_ano_inicial_faixa(faixa), str(faixa)))
+
+
 def preparar_dados_pos_graduacao_por_faixa(df_base):
     dados_validos = df_base[[COL_FAIXA_CONCLUSAO, COL_POS]].dropna().copy()
     if dados_validos.empty:
@@ -269,6 +280,7 @@ def preparar_dados_pos_graduacao_por_faixa(df_base):
 
 
 def construir_figura_pos_graduacao_por_faixa(df_pos_agrupado, altura, tema):
+    ordem_faixas = obter_ordem_cronologica_faixas(df_pos_agrupado[COL_FAIXA_CONCLUSAO])
     fig_pg = px.bar(
         df_pos_agrupado,
         x=COL_FAIXA_CONCLUSAO,
@@ -277,6 +289,7 @@ def construir_figura_pos_graduacao_por_faixa(df_pos_agrupado, altura, tema):
         barmode="group",
         text="Rótulo Percentual",
         labels={"Percentual": "Percentual (%)"},
+        category_orders={COL_FAIXA_CONCLUSAO: ordem_faixas},
         color_discrete_sequence=[UFRA_VERDE, "#A5CFA3", "#D0E6C8"],
         title="",
     )
