@@ -3,68 +3,223 @@
 # ============================================================
 # Autor: Prof. Anderson Soares
 # Campus: UFRA - Capanema
-# Descrição:
-# Painel interativo para visualização de dados dos egressos,
-# com filtros, gráficos dinâmicos e anonimização total.
+# Descricao:
+# Painel interativo para visualizacao de dados dos egressos,
+# com filtros, graficos dinamicos e anonimização total.
 # ============================================================
 
 import os
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import plotly.io as pio
+
 
 # ------------------------------------------------------------
-# 1. CONFIGURAÇÕES INICIAIS
+# 1. CONFIGURACOES INICIAIS
 # ------------------------------------------------------------
 st.set_page_config(
     page_title="Dashboard de Egressos - UFRA Capanema",
     page_icon="🌿",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-st.markdown("""
-    <style>
-        [data-testid="stSidebar"] {
-            min-width: 280px;
-            max-width: 300px;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# ------------------------------------------------------------
-# Remover botão Deploy, menus e espaço superior
-# ------------------------------------------------------------
-custom_style = """
-    <style>
-        /* Remove menu do Streamlit (Deploy, Settings, etc.) */
-        #MainMenu {visibility: hidden;}
-        
-        /* Remove rodapé padrão "Made with Streamlit" */
-        footer {visibility: hidden;}
-        
-        /* Remove a barra superior branca */
-        header {visibility: hidden;}
-        
-        /* Remove o espaço superior antes do cabeçalho */
-        .block-container {padding-top: 0rem;}
-        
-        /* Remove apenas o botão Deploy (caso apareça isolado) */
-        [data-testid="stDeployButton"] {display: none;}
-    </style>
-"""
-st.markdown(custom_style, unsafe_allow_html=True)
-
-# ------------------------------------------------------------
-
-# pio.templates.default = "plotly_dark"
 # Paleta institucional UFRA
 UFRA_VERDE = "#006633"
 UFRA_CINZA = "#F2F2F2"
 
+# Nomes de colunas usados no dashboard
+COL_NOME = "Nome Completo"
+COL_ANO = "Ano de Saída/Conclusão do Curso"
+COL_UF = "UF"
+COL_TRABALHANDO = "Você está trabalhando?"
+COL_ATUACAO_AREA = "O seu emprego é na área de formação?"
+COL_POS = "Possui Pós-Graduação"
+COL_FAIXA_CONCLUSAO = "Faixa de Conclusão"
+COL_SITUACAO_MERCADO = "Qual a sua situação no mercado de trabalho?"
+COL_SETOR_TRABALHO = "Qual o setor do seu trabalho?"
+COL_TEMPO_PRIMEIRO_EMPREGO = (
+    "Quanto tempo, em meses, demorou para conseguir o primeiro emprego após concluir o curso?"
+)
+
+THEME_OPTIONS = {
+    "dark": {
+        "app_bg": "#0E1117",
+        "sidebar_bg": "#111111",
+        "text": "#F5F5F5",
+        "muted_text": "#B8BEC5",
+        "divider": "#2B3138",
+        "plot_bg": "#111111",
+        "paper_bg": "#111111",
+        "grid": "#3A3A3A",
+        "axis_line": "#4B5563",
+        "legend_bg": "rgba(17, 17, 17, 0.70)",
+        "geo_land": "#1A1A1A",
+        "geo_country": "#6B7280",
+        "header_text": "#FFFFFF",
+    },
+    "light": {
+        "app_bg": "#FFFFFF",
+        "sidebar_bg": UFRA_CINZA,
+        "text": "#1F2933",
+        "muted_text": "#5C6670",
+        "divider": "#D8DEE5",
+        "plot_bg": "#FFFFFF",
+        "paper_bg": "#FFFFFF",
+        "grid": "#D8DEE5",
+        "axis_line": "#AAB4BE",
+        "legend_bg": "rgba(255, 255, 255, 0.90)",
+        "geo_land": "#EEF2F4",
+        "geo_country": "#8C98A4",
+        "header_text": "#FFFFFF",
+    },
+}
+
+
+def get_theme():
+    if "dashboard_theme" not in st.session_state:
+        st.session_state["dashboard_theme"] = "dark"
+    if "theme_toggle" not in st.session_state:
+        st.session_state["theme_toggle"] = st.session_state["dashboard_theme"] == "dark"
+
+    st.session_state["dashboard_theme"] = "dark" if st.session_state["theme_toggle"] else "light"
+    return st.session_state["dashboard_theme"]
+
+
+def apply_streamlit_theme(theme):
+    cores = THEME_OPTIONS[theme]
+    st.markdown(
+        f"""
+        <style>
+            #MainMenu {{visibility: hidden;}}
+            footer {{visibility: hidden;}}
+            header {{visibility: hidden;}}
+            .block-container {{padding-top: 0rem;}}
+            [data-testid="stDeployButton"] {{display: none;}}
+
+            .stApp {{
+                background-color: {cores["app_bg"]};
+                color: {cores["text"]};
+            }}
+
+            [data-testid="stSidebar"] {{
+                min-width: 280px;
+                max-width: 300px;
+                background-color: {cores["sidebar_bg"]};
+                border-right: 1px solid {cores["divider"]};
+            }}
+
+            [data-testid="stSidebar"] * {{
+                color: {cores["text"]};
+            }}
+
+            [data-testid="stMetricLabel"] p,
+            [data-testid="stMetricValue"] {{
+                color: {cores["text"]} !important;
+            }}
+
+            [data-testid="stMarkdownContainer"] p,
+            [data-testid="stMarkdownContainer"] li,
+            .stSubheader {{
+                color: {cores["text"]};
+            }}
+
+            hr {{
+                border-color: {cores["divider"]};
+            }}
+
+            .stDownloadButton button {{
+                background-color: {UFRA_VERDE};
+                color: #FFFFFF;
+                border: 1px solid {UFRA_VERDE};
+            }}
+
+            .stDownloadButton button:hover {{
+                background-color: #005529;
+                color: #FFFFFF;
+                border: 1px solid #005529;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def apply_plotly_theme(fig, theme):
+    cores = THEME_OPTIONS[theme]
+    treemap_text_color = "#FFFFFF" if theme == "dark" else "#102A1A"
+
+    fig.update_layout(
+        plot_bgcolor=cores["plot_bg"],
+        paper_bgcolor=cores["paper_bg"],
+        font=dict(color=cores["text"]),
+        legend=dict(
+            font=dict(color=cores["text"]),
+            title=dict(font=dict(color=cores["text"])),
+            bgcolor=cores["legend_bg"],
+        ),
+        xaxis=dict(
+            title_font=dict(color=cores["text"]),
+            tickfont=dict(color=cores["text"]),
+            gridcolor=cores["grid"],
+            zerolinecolor=cores["grid"],
+            linecolor=cores["axis_line"],
+        ),
+        yaxis=dict(
+            title_font=dict(color=cores["text"]),
+            tickfont=dict(color=cores["text"]),
+            gridcolor=cores["grid"],
+            zerolinecolor=cores["grid"],
+            linecolor=cores["axis_line"],
+        ),
+        hoverlabel=dict(
+            bgcolor=cores["paper_bg"],
+            font=dict(color=cores["text"]),
+        ),
+    )
+
+    fig.update_coloraxes(
+        colorbar=dict(
+            tickfont=dict(color=cores["text"]),
+            title=dict(font=dict(color=cores["text"])),
+            bgcolor=cores["paper_bg"],
+        )
+    )
+
+    # Mantem labels text_auto legiveis em ambos os temas.
+    fig.update_traces(
+        textposition="outside",
+        textfont=dict(color=cores["text"]),
+        cliponaxis=False,
+        selector=dict(type="bar"),
+    )
+    fig.update_traces(
+        textposition="outside",
+        textfont=dict(color=cores["text"]),
+        selector=dict(type="histogram"),
+    )
+    fig.update_traces(textfont=dict(color=treemap_text_color), selector=dict(type="treemap"))
+
+    if any(getattr(trace, "type", "") in {"scattergeo", "choropleth"} for trace in fig.data):
+        fig.update_geos(
+            bgcolor=cores["plot_bg"],
+            landcolor=cores["geo_land"],
+            countrycolor=cores["geo_country"],
+            coastlinecolor=cores["geo_country"],
+            lakecolor=cores["plot_bg"],
+        )
+
+    return fig
+
+
+def render_theme_toggle():
+    st.sidebar.markdown("---")
+    st.sidebar.caption("Aparência do dashboard")
+    st.sidebar.toggle("Tema escuro", key="theme_toggle")
+
+
 # ------------------------------------------------------------
-# 2. IMPORTAÇÃO DOS DADOS
+# 2. IMPORTACAO DOS DADOS
 # ------------------------------------------------------------
 @st.cache_data
 def carregar_dados():
@@ -72,23 +227,20 @@ def carregar_dados():
     file_path = os.path.join(base_dir, "../database/egressos_limpo.csv")
 
     try:
-        # Tenta leitura com diferentes separadores e codificações
         df = pd.read_csv(file_path, encoding="utf-8-sig", sep=",")
     except Exception:
         try:
             df = pd.read_csv(file_path, encoding="utf-8-sig", sep=";")
-        except Exception as e:
-            st.error(f"Erro ao carregar o arquivo CSV: {e}")
+        except Exception as erro:
+            st.error(f"Erro ao carregar o arquivo CSV: {erro}")
             st.stop()
 
-    # Remover colunas sensíveis
-    df = df.drop(columns=["Nome Completo"], errors="ignore")
+    df = df.drop(columns=[COL_NOME], errors="ignore")
     return df
 
-df = carregar_dados()
 
 # ------------------------------------------------------------
-# Funções auxiliares - Pós-Graduação por Faixa de Conclusão
+# Funcoes auxiliares - Pos-Graduacao por faixa de conclusao
 # ------------------------------------------------------------
 def formatar_percentual_rotulo(valor):
     valor = round(float(valor), 1)
@@ -98,66 +250,66 @@ def formatar_percentual_rotulo(valor):
 
 
 def preparar_dados_pos_graduacao_por_faixa(df_base):
-    coluna_faixa = "Faixa de Conclus\u00e3o"
-    coluna_pos = "Possui P\u00f3s-Gradua\u00e7\u00e3o"
-
-    dados_validos = df_base[[coluna_faixa, coluna_pos]].dropna().copy()
+    dados_validos = df_base[[COL_FAIXA_CONCLUSAO, COL_POS]].dropna().copy()
     if dados_validos.empty:
         return pd.DataFrame(
-            columns=[coluna_faixa, coluna_pos, "Quantidade", "Percentual", "R\u00f3tulo Percentual"]
+            columns=[COL_FAIXA_CONCLUSAO, COL_POS, "Quantidade", "Percentual", "Rótulo Percentual"]
         )
 
     dados_agrupados = (
         dados_validos
-        .groupby([coluna_faixa, coluna_pos], sort=False, dropna=False)
+        .groupby([COL_FAIXA_CONCLUSAO, COL_POS], sort=False, dropna=False)
         .size()
         .reset_index(name="Quantidade")
     )
-    totais_por_faixa = dados_agrupados.groupby(coluna_faixa, sort=False)["Quantidade"].transform("sum")
+    totais_por_faixa = dados_agrupados.groupby(COL_FAIXA_CONCLUSAO, sort=False)["Quantidade"].transform("sum")
     dados_agrupados["Percentual"] = (dados_agrupados["Quantidade"] / totais_por_faixa) * 100
-    dados_agrupados["R\u00f3tulo Percentual"] = dados_agrupados["Percentual"].apply(formatar_percentual_rotulo)
+    dados_agrupados["Rótulo Percentual"] = dados_agrupados["Percentual"].apply(formatar_percentual_rotulo)
     return dados_agrupados
 
 
-def construir_figura_pos_graduacao_por_faixa(df_pos_agrupado, altura):
+def construir_figura_pos_graduacao_por_faixa(df_pos_agrupado, altura, tema):
     fig_pg = px.bar(
         df_pos_agrupado,
-        x="Faixa de Conclus\u00e3o",
+        x=COL_FAIXA_CONCLUSAO,
         y="Percentual",
-        color="Possui P\u00f3s-Gradua\u00e7\u00e3o",
+        color=COL_POS,
         barmode="group",
-        text="R\u00f3tulo Percentual",
+        text="Rótulo Percentual",
         labels={"Percentual": "Percentual (%)"},
         color_discrete_sequence=[UFRA_VERDE, "#A5CFA3", "#D0E6C8"],
-        title=""
+        title="",
     )
-    fig_pg.update_traces(textposition="auto")
-    fig_pg.update_yaxes(range=[0, 100], ticksuffix="%")
-    fig_pg.update_layout(
-        margin=dict(l=0, r=0, t=20, b=0),
-        height=altura,
-        plot_bgcolor="#111111",
-        paper_bgcolor="#111111"
-    )
-    return fig_pg
+    fig_pg.update_yaxes(range=[0, 110], ticksuffix="%")
+    fig_pg.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=altura)
+    return apply_plotly_theme(fig_pg, tema)
+
+
+THEME = get_theme()
+THEME_COLORS = THEME_OPTIONS[THEME]
+apply_streamlit_theme(THEME)
+
+df = carregar_dados()
 
 # ------------------------------------------------------------
-# 3. LAYOUT - CABEÇALHO
+# 3. LAYOUT - CABECALHO
 # ------------------------------------------------------------
-
-st.markdown(f"""
+st.markdown(
+    f"""
     <div style="
         background-color:{UFRA_VERDE};
         padding:8px 15px;
         border-radius:8px;
         text-align:center;
+        border:1px solid {THEME_COLORS["divider"]};
     ">
-        <h3 style="color:white;margin-bottom:2px;">
-            Egressos de Engenharia Ambiental – UFRA Capanema
+        <h3 style="color:{THEME_COLORS["header_text"]};margin-bottom:2px;">
+            Egressos de Engenharia Ambiental - UFRA Capanema
         </h3>
-        <!--<p style="color:#cccccc;font-size:14px;">Painel de acompanhamento</p>-->
     </div>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 st.write("")
 
@@ -166,55 +318,55 @@ st.write("")
 # ------------------------------------------------------------
 st.sidebar.header("🔍 Filtros")
 
-anos = sorted(df["Ano de Saída/Conclusão do Curso"].unique())
-ufs = sorted(df["UF"].unique())
-situacoes = sorted(df["Você está trabalhando?"].unique())
-pos_graduacao = sorted(df["Possui Pós-Graduação"].unique())
+anos = sorted(df[COL_ANO].dropna().unique())
+ufs = sorted(df[COL_UF].dropna().unique())
+situacoes = sorted(df[COL_TRABALHANDO].dropna().unique())
+pos_graduacao = sorted(df[COL_POS].dropna().unique())
 
 filtro_ano = st.sidebar.multiselect("Ano de Conclusão", anos, default=anos)
 filtro_uf = st.sidebar.multiselect("UF", ufs, default=ufs)
 filtro_situacao = st.sidebar.multiselect("Situação Profissional", situacoes, default=situacoes)
 filtro_pos = st.sidebar.multiselect("Pós-Graduação", pos_graduacao, default=pos_graduacao)
 
-# Aplicar filtros
+# Toggle no final do menu lateral
+render_theme_toggle()
+
 df_filtro = df[
-    (df["Ano de Saída/Conclusão do Curso"].isin(filtro_ano)) &
-    (df["UF"].isin(filtro_uf)) &
-    (df["Você está trabalhando?"].isin(filtro_situacao)) &
-    (df["Possui Pós-Graduação"].isin(filtro_pos))
-]
+    (df[COL_ANO].isin(filtro_ano))
+    & (df[COL_UF].isin(filtro_uf))
+    & (df[COL_TRABALHANDO].isin(filtro_situacao))
+    & (df[COL_POS].isin(filtro_pos))
+].copy()
 
 # ------------------------------------------------------------
 # 5. KPIs - INDICADORES PRINCIPAIS
 # ------------------------------------------------------------
 col1, col2, col3, col4 = st.columns(4)
 total = len(df_filtro)
-empregados = df_filtro[df_filtro["Você está trabalhando?"] == "Sim"]
-na_area = empregados[empregados["O seu emprego é na área de formação?"] == "Sim"]
-pos = df_filtro[df_filtro["Possui Pós-Graduação"].isin(["Sim", "Cursando"])]
-tempo_medio = df_filtro["Quanto tempo, em meses, demorou para conseguir o primeiro emprego após concluir o curso?"].mean()
+empregados = df_filtro[df_filtro[COL_TRABALHANDO] == "Sim"]
+na_area = empregados[empregados[COL_ATUACAO_AREA] == "Sim"]
+tempo_medio = df_filtro[COL_TEMPO_PRIMEIRO_EMPREGO].mean()
+
+tempo_medio_label = f"{tempo_medio:.1f} meses" if pd.notna(tempo_medio) else "0,0 meses"
 
 col1.metric("Total de Egressos", f"{total}")
-col2.metric("Empregados", f"{len(empregados)} ({len(empregados)/total*100:.0f}%)" if total else "0")
-col3.metric("Atuando na Área", f"{len(na_area)} ({len(na_area)/total*100:.0f}%)" if total else "0")
-col4.metric("Tempo Médio até o 1º Emprego", f"{tempo_medio:.1f} meses")
+col2.metric("Empregados", f"{len(empregados)} ({len(empregados) / total * 100:.0f}%)" if total else "0")
+col3.metric("Atuando na Área", f"{len(na_area)} ({len(na_area) / total * 100:.0f}%)" if total else "0")
+col4.metric("Tempo Médio até o 1º Emprego", tempo_medio_label)
 
 st.markdown("---")
-# ------------------------------------------------------------
-# 6. VISUALIZAÇÕES PRINCIPAIS (em layout 2x2)
-# ------------------------------------------------------------
 
-# # Linha 1: Mapa + Situação Profissional
-col1, col2 = st.columns(2)
+# ------------------------------------------------------------
+# 6. VISUALIZACOES PRINCIPAIS (layout 2x2)
+# ------------------------------------------------------------
+col_g1, col_g2 = st.columns(2)
 GRAPHICS_HEIGHT = 300
 
-with col1:
+with col_g1:
     st.subheader("🗺️ Distribuição Geográfica dos Egressos")
 
-    # Normalizar valores da coluna UF
-    df_filtro["UF"] = df_filtro["UF"].astype(str).str.strip().str.upper()
+    df_filtro[COL_UF] = df_filtro[COL_UF].astype(str).str.strip().str.upper()
 
-    # Dicionário de coordenadas (UFs e países)
     coords = {
         "AC": [-9.02, -70.81], "AL": [-9.57, -36.78], "AM": [-3.41, -65.85],
         "AP": [1.41, -51.60], "BA": [-12.97, -41.59], "CE": [-5.49, -39.32],
@@ -225,114 +377,85 @@ with col1:
         "RJ": [-22.90, -43.17], "RN": [-5.79, -36.55], "RS": [-30.03, -51.21],
         "RO": [-11.50, -63.58], "RR": [2.73, -62.07], "SC": [-27.24, -50.21],
         "SP": [-22.90, -47.06], "SE": [-10.57, -37.38], "TO": [-10.17, -48.29],
-        "PT": [38.7169, -9.1399],  # Portugal 🇵🇹
+        "PT": [38.7169, -9.1399],
     }
 
-    # Adicionar colunas de coordenadas
-    df_filtro["lat"] = df_filtro["UF"].apply(lambda x: coords.get(x, [None, None])[0])
-    df_filtro["lon"] = df_filtro["UF"].apply(lambda x: coords.get(x, [None, None])[1])
+    df_filtro["lat"] = df_filtro[COL_UF].apply(lambda uf: coords.get(uf, [None, None])[0])
+    df_filtro["lon"] = df_filtro[COL_UF].apply(lambda uf: coords.get(uf, [None, None])[1])
 
-    # Separar Brasil e Exterior
-    df_brasil = df_filtro[df_filtro["UF"].isin(coords.keys()) & (df_filtro["UF"] != "PT")]
-    df_exterior = df_filtro[df_filtro["UF"] == "PT"]
+    df_brasil = df_filtro[df_filtro[COL_UF].isin(coords.keys()) & (df_filtro[COL_UF] != "PT")]
+    df_exterior = df_filtro[df_filtro[COL_UF] == "PT"]
 
-    # Criar mapa base (Brasil + exterior)
-    fig = px.scatter_geo(
+    fig_geo = px.scatter_geo(
         df_brasil.dropna(subset=["lat", "lon"]),
         lat="lat",
         lon="lon",
-        color="UF",
-        hover_name="UF",
+        color=COL_UF,
+        hover_name=COL_UF,
         scope="world",
         title="",
         color_discrete_sequence=[UFRA_VERDE, "#94C973", "#B5DCC2"],
     )
 
-    # Egresso internacional (Portugal)
     if not df_exterior.empty:
-        fig.add_scattergeo(
+        fig_geo.add_scattergeo(
             lat=df_exterior["lat"],
             lon=df_exterior["lon"],
             mode="markers+text",
             marker=dict(
-                # size=6,
-                symbol= "diamond",
-                color="#FFD700",  # dourado
-                line=dict(width=1, color="white")
+                symbol="diamond",
+                color="#FFD700",
+                line=dict(width=1, color=THEME_COLORS["text"]),
             ),
-            # text=["🌍 Egresso Internacional (Portugal)"],
             textposition="top center",
             name="Exterior",
         )
 
-    # Ajustes de layout
-    fig.update_geos(
-        showcountries=True,
-        showland=True,
-        landcolor="#0D0D0D",
-        countrycolor="gray",
-    )
-    fig.update_layout(
-        margin=dict(l=0, r=0, t=20, b=0),
-        height=GRAPHICS_HEIGHT,
-        geo=dict(bgcolor="#111111"),
-        paper_bgcolor="#111111",
-        plot_bgcolor="#111111",
-    )
+    fig_geo.update_geos(showcountries=True, showland=True)
+    fig_geo.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=GRAPHICS_HEIGHT)
+    fig_geo = apply_plotly_theme(fig_geo, THEME)
 
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig_geo, use_container_width=True, config={"displayModeBar": False})
 
-with col2:
+with col_g2:
     st.subheader("💼 Situação Profissional x Atuação na Área")
     fig_bar = px.histogram(
         df_filtro,
-        x="Você está trabalhando?",
-        color="O seu emprego é na área de formação?",
+        x=COL_TRABALHANDO,
+        color=COL_ATUACAO_AREA,
         barmode="group",
         text_auto=True,
         color_discrete_sequence=[UFRA_VERDE, "#94C973"],
-        title=""
+        title="",
     )
-    fig_bar.update_layout(
-        margin=dict(l=0, r=0, t=20, b=0),
-        height=GRAPHICS_HEIGHT,
-        plot_bgcolor="#111111",
-        paper_bgcolor='#111111'
-    )
-    st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
+    fig_bar.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=GRAPHICS_HEIGHT)
+    fig_bar = apply_plotly_theme(fig_bar, THEME)
+    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
 
-# Linha 2: Treemap + Pós-Graduação
-col3, col4 = st.columns(2)
+col_g3, col_g4 = st.columns(2)
 
-with col3:
+with col_g3:
     st.subheader("🌳 Atuação dos Egressos")
     fig_treemap = px.treemap(
         df_filtro,
-        path=[
-            "Qual a sua situação no mercado de trabalho?",
-            "Qual o setor do seu trabalho?",
-            "O seu emprego é na área de formação?",
-        ],
-        color="Você está trabalhando?",
+        path=[COL_SITUACAO_MERCADO, COL_SETOR_TRABALHO, COL_ATUACAO_AREA],
+        color=COL_TRABALHANDO,
         color_discrete_sequence=[UFRA_VERDE, "#94C973", "#B5DCC2"],
-        title=""
+        title="",
     )
-    fig_treemap.update_layout(
-        margin=dict(l=0, r=0, t=20, b=0),
-        height=GRAPHICS_HEIGHT,
-        paper_bgcolor='#111111'
-    )
-    st.plotly_chart(fig_treemap, use_container_width=True, config={'displayModeBar': False})
+    fig_treemap.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=GRAPHICS_HEIGHT)
+    fig_treemap = apply_plotly_theme(fig_treemap, THEME)
+    st.plotly_chart(fig_treemap, use_container_width=True, config={"displayModeBar": False})
 
-with col4:
+with col_g4:
     st.subheader("🎓 Pós-Graduação por Faixa de Conclusão")
     dados_pos_agrupados = preparar_dados_pos_graduacao_por_faixa(df_filtro)
-    fig_pg = construir_figura_pos_graduacao_por_faixa(dados_pos_agrupados, GRAPHICS_HEIGHT)
-    st.plotly_chart(fig_pg, use_container_width=True, config={'displayModeBar': False})
+    fig_pg = construir_figura_pos_graduacao_por_faixa(dados_pos_agrupados, GRAPHICS_HEIGHT, THEME)
+    st.plotly_chart(fig_pg, use_container_width=True, config={"displayModeBar": False})
 
 
 # ------------------------------------------------------------
-# 7. EXPORTAÇÃO SEGURA (SEM NOMES)
+# 7. EXPORTACAO SEGURA (SEM NOMES)
 # ------------------------------------------------------------
 st.subheader("📤 Exportar dados filtrados (anonimizados)")
 df_export = df_filtro.drop(columns=["E-mail"], errors="ignore")
@@ -346,11 +469,14 @@ st.download_button(
 )
 
 # ------------------------------------------------------------
-# 8. RODAPÉ
+# 8. RODAPE
 # ------------------------------------------------------------
-st.markdown(f"""
-    <div style="text-align:center;color:gray;padding:15px;margin-top:30px;font-size:13px">
+st.markdown(
+    f"""
+    <div style="text-align:center;color:{THEME_COLORS["muted_text"]};padding:15px;margin-top:30px;font-size:13px">
         <b>Universidade Federal Rural da Amazônia - Campus Capanema</b><br>
         Desenvolvido em Python com Streamlit e Plotly | © {pd.Timestamp.now().year}
     </div>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
