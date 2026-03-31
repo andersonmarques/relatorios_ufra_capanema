@@ -260,6 +260,64 @@ def obter_ordem_cronologica_faixas(series_faixas):
     return sorted(faixas_unicas, key=lambda faixa: (extrair_ano_inicial_faixa(faixa), str(faixa)))
 
 
+def preparar_dados_percentual(df_base, col_x, col_categoria):
+    col_quantidade = "Quantidade"
+    col_percentual = "Percentual"
+    col_rotulo_percentual = "R\u00F3tulo Percentual"
+
+    dados_validos = df_base[[col_x, col_categoria]].dropna().copy()
+    if dados_validos.empty:
+        return pd.DataFrame(
+            columns=[col_x, col_categoria, col_quantidade, col_percentual, col_rotulo_percentual]
+        )
+
+    dados_agrupados = (
+        dados_validos
+        .groupby([col_x, col_categoria], sort=False, dropna=False)
+        .size()
+        .reset_index(name=col_quantidade)
+    )
+
+    totais_por_x = dados_agrupados.groupby(col_x, sort=False)[col_quantidade].transform("sum")
+    dados_agrupados[col_percentual] = (dados_agrupados[col_quantidade] / totais_por_x) * 100
+    dados_agrupados[col_rotulo_percentual] = dados_agrupados[col_percentual].apply(formatar_percentual_rotulo)
+    return dados_agrupados
+
+
+def construir_figura_bar_percentual(
+    df_percentual,
+    col_x,
+    col_categoria,
+    altura,
+    tema,
+    category_orders=None,
+    color_discrete_sequence=None,
+):
+    col_percentual = "Percentual"
+    col_rotulo_percentual = "R\u00F3tulo Percentual"
+
+    kwargs = {}
+    if category_orders is not None:
+        kwargs["category_orders"] = category_orders
+    if color_discrete_sequence is not None:
+        kwargs["color_discrete_sequence"] = color_discrete_sequence
+
+    fig_bar = px.bar(
+        df_percentual,
+        x=col_x,
+        y=col_percentual,
+        color=col_categoria,
+        barmode="group",
+        text=col_rotulo_percentual,
+        labels={col_percentual: "Percentual"},
+        title="",
+        **kwargs,
+    )
+    fig_bar.update_yaxes(range=[0, 110], ticksuffix="%")
+    fig_bar.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=altura)
+    return apply_plotly_theme(fig_bar, tema)
+
+
 def preparar_dados_pos_graduacao_por_faixa(df_base):
     dados_validos = df_base[[COL_FAIXA_CONCLUSAO, COL_POS]].dropna().copy()
     if dados_validos.empty:
@@ -432,17 +490,19 @@ with col_g1:
 
 with col_g2:
     st.subheader("💼 Situação Profissional x Atuação na Área")
-    fig_bar = px.histogram(
+    dados_situacao_atuacao = preparar_dados_percentual(
         df_filtro,
-        x=COL_TRABALHANDO,
-        color=COL_ATUACAO_AREA,
-        barmode="group",
-        text_auto=True,
-        color_discrete_sequence=[UFRA_VERDE, "#94C973"],
-        title="",
+        COL_TRABALHANDO,
+        COL_ATUACAO_AREA,
     )
-    fig_bar.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=GRAPHICS_HEIGHT)
-    fig_bar = apply_plotly_theme(fig_bar, THEME)
+    fig_bar = construir_figura_bar_percentual(
+        dados_situacao_atuacao,
+        col_x=COL_TRABALHANDO,
+        col_categoria=COL_ATUACAO_AREA,
+        altura=GRAPHICS_HEIGHT,
+        tema=THEME,
+        color_discrete_sequence=[UFRA_VERDE, "#94C973"],
+    )
     st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
 
 col_g3, col_g4 = st.columns(2)
