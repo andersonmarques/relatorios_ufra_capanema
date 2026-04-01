@@ -89,7 +89,11 @@ Todas as análises e visualizações são realizadas sobre dados **anonimizados 
 
 **Prof. Dr. Anderson Soares**  
 Campus da Universidade Federal Rural da Amazônia — UFRA Capanema  
-📧 [anderson.soares@ufra.edu.br](mailto:anderson.soares@ufra.edu.br)
+📧 [andersonsoares@ufra.edu.br](mailto:anderson.soares@ufra.edu.br)
+
+**Prof. Dr. Geraldo Melo**  
+Campus da Universidade Federal Rural da Amazônia — UFRA Capanema  
+📧 [geraldo.melo@ufra.edu.br](mailto:geraldo.melo@ufra.edu.br)
 
 Projeto vinculado às ações de acompanhamento de egressos e fortalecimento institucional da UFRA.
 
@@ -104,3 +108,35 @@ O código pode ser reutilizado para fins acadêmicos, desde que mantidos os devi
 
 > Desenvolvido com 💚 Python, Streamlit e Plotly.  
 > Laboratório de Tecnologias Computacionais ([**LabTec**](https://sites.google.com/view/gplabtec)) ([**Canal do LabTec**](https://www.youtube.com/@labtec_ufra))
+
+## Estrutura refatorada (camadas leves)
+
+A partir desta refatoracao, o dashboard passa a adotar uma organizacao em camadas leves:
+
+```text
+src/
+  dashboard_egressos.py
+  dashboard/
+    app.py
+    config.py
+    types.py
+    services/
+      data_loader.py
+      filters.py
+      metrics.py
+      aggregations.py
+      geo.py
+    charts/
+      theme.py
+      builders.py
+tests/
+  test_aggregations.py
+  test_filters_metrics.py
+  test_charts_builders.py
+```
+
+O comando de execucao permanece o mesmo:
+
+```bash
+streamlit run src/dashboard_egressos.py
+```
