@@ -8,9 +8,13 @@ import pandas as pd
 import streamlit as st
 
 from dashboard.charts.builders import (
+    construir_figura_bar_agrupada,
+    construir_figura_bar_empilhada,
+    construir_figura_bar_horizontal,
     plot_bar_percent,
     plot_geo,
     plot_pos_graduacao_por_faixa,
+    plot_sunburst,
     plot_treemap,
 )
 from dashboard.charts.theme import (
@@ -148,6 +152,14 @@ def _render_metrics(metrics: DashboardMetrics) -> None:
 def _render_charts(df_filtered: pd.DataFrame, theme_name: str) -> None:
     """Renderiza a grade principal de visualizações."""
 
+    def _render_legend_apelidos(legend_df: pd.DataFrame) -> None:
+        """Renderiza legenda auxiliar para apelidos de rótulos longos."""
+
+        if legend_df.empty:
+            return
+        st.caption("Legenda de rótulos longos (apelido → descrição completa)")
+        st.dataframe(legend_df, hide_index=True, use_container_width=True)
+
     col_g1, col_g2 = st.columns(2)
 
     with col_g1:
@@ -182,14 +194,14 @@ def _render_charts(df_filtered: pd.DataFrame, theme_name: str) -> None:
 
     with col_g3:
         st.subheader("🌳 Atuação dos Egressos")
-        fig_treemap = plot_treemap(
+        
+        fig_empilhada, legenda_empilhada = construir_figura_bar_empilhada(
             df=df_filtered,
-            path=[COL_SITUACAO_MERCADO, COL_SETOR_TRABALHO, COL_ATUACAO_AREA],
-            color=COL_TRABALHANDO,
             theme_name=theme_name,
             height=GRAPHICS_HEIGHT,
         )
-        st.plotly_chart(fig_treemap, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_empilhada, use_container_width=True, config={"displayModeBar": False})
+        _render_legend_apelidos(legenda_empilhada)
 
     with col_g4:
         st.subheader("🎓 Pós-Graduação por Faixa de Conclusão")

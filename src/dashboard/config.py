@@ -37,6 +37,7 @@ SENSITIVE_COLUMNS = (COL_NOME, COL_EMAIL)
 # Parametros de visualizacao
 GRAPHICS_HEIGHT = 300
 CHART_MARGIN = {"l": 0, "r": 0, "t": 20, "b": 0}
+LONG_LABEL_THRESHOLD = 5
 
 CHART_COLORS_BASE = [UFRA_VERDE, "#94C973", "#B5DCC2"]
 CHART_COLORS_POS = [UFRA_VERDE, "#A5CFA3", "#D0E6C8"]
@@ -74,4 +75,3 @@ THEME_OPTIONS = {
         "header_text": "#FFFFFF",
     },
 }
-
