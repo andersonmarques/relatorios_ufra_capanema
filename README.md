@@ -12,6 +12,8 @@ O painel tem como propósito divulgar, de forma acessível e visual, **onde e co
 
 Além de fortalecer a identidade institucional, o projeto tem papel estratégico na **avaliação do curso**, **prestação de contas à comunidade acadêmica** e **incentivo aos atuais discentes**, mostrando o alcance da formação oferecida pela UFRA.
 
+Acesse o dashboard: [Egressos de Engenharia Ambiental - UFRA Capanema](https://relatoriosufracapanema-beta.streamlit.app)
+
 ---
 
 ## 🧠 Tecnologias Utilizadas
